@@ -113,7 +113,7 @@ int main()
     int n_sub = 150; //number of subsamples
     int n_resample = 10; //number of times we regenerate subsamples
     int n_averages = 10; //number of times we test a number of trials
-    std::vector<int> n_run_vec; //vector of bootstrap trials per subsamples
+    std::vector<int> n_trials_vec; //vector of bootstrap trials per subsamples
 
     //Generate vector of boostrap trials per subsample we want to run. This will
     //eventually be an integer, but we need to see how this converges
@@ -122,20 +122,25 @@ int main()
     for (auto i = 2; i <= 128; i*=2)
     {
         printf("%d,", i);
-        n_run_vec.push_back(i);
+        n_trials_vec.push_back(i);
     }
     printf("\n\n");
+
+    printf("n_trials_vec: [");
+    for (auto elm : n_trials_vec)
+        printf("%d,", elm);
+    printf("]\n");
 
     //Matrix of results : average
     std::vector<std::vector<float>> avg_resample_trials(n_resample);
     for (auto& samp : avg_resample_trials)
-    for (auto trial : n_run_vec)
+    for (auto trial : n_trials_vec)
         samp.push_back(0.);
 
     //matrix of results : stddev
     std::vector<std::vector<float>> stddev_resample_trials(n_resample);
     for (auto& samp : stddev_resample_trials)
-    for (auto trial : n_run_vec)
+    for (auto trial : n_trials_vec)
         samp.push_back(0.);
 
     //Read samples from file
@@ -158,12 +163,12 @@ int main()
         printf("]\n");
         
         //loop over the number of bootstrap trials
-        for (auto trials_itr = 0; trials_itr < n_run_vec.size(); trials_itr++)
+        for (auto trials_itr = 0; trials_itr < n_trials_vec.size(); trials_itr++)
         { 
-            auto ntrials = n_run_vec[trials_itr];
+            auto ntrials = n_trials_vec[trials_itr];
 
             printf("Num Trials : %d ,", ntrials);
-            std::vector<float> trials_avg;
+            std::vector<float> trials_avg(ntrials);
 
             //Buffer for bootstrapping
             std::vector<float> bs_data(ntrials);
@@ -171,12 +176,12 @@ int main()
             //For this random subsample, run bootstrap a couple times
             for (auto averages_itr = 0; averages_itr < n_averages; averages_itr++)
             {
-                 
                 bootstrap::simple_samples<float>(ntrials, 
                                                  sub_samples.begin(),
                                                  sub_samples.end(), 
                                                  bs_data, 
                                                  rng);
+ 
                 float avg = 0.;
                 for (const auto& elm : bs_data)
                    avg += elm;
