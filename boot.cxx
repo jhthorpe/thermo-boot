@@ -168,7 +168,7 @@ int main()
             auto ntrials = n_trials_vec[trials_itr];
 
             printf("Num Trials : %d ,", ntrials);
-            std::vector<float> trials_avg(ntrials);
+            std::vector<float> trials_avg(n_averages);
 
             //Buffer for bootstrapping
             std::vector<float> bs_data(ntrials);
