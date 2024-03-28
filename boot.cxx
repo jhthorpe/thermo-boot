@@ -16,6 +16,8 @@
 #include "randutils.hpp"
 #include "bootstrap.hpp"
 
+#define N_SUB 10
+
 /*
  * Count number of lines (\n characters) in a file
  */
@@ -110,16 +112,15 @@ int main()
 {
     randutils::mt19937_rng rng;
 
-    int n_sub = 150; //number of subsamples
-    int n_resample = 10; //number of times we regenerate subsamples
-    int n_averages = 10; //number of times we test a number of trials
+    int n_sub = N_SUB; //number of subsamples
+    int n_resample = 15; //number of times we regenerate subsamples
+    int n_averages = 1; //number of times we test a number of trials
     std::vector<int> n_trials_vec; //vector of bootstrap trials per subsamples
 
     //Generate vector of boostrap trials per subsample we want to run. This will
     //eventually be an integer, but we need to see how this converges
     printf("numbers of trials to test\n");
-//    for (auto i = 2; i <= 2048; i*=2)
-    for (auto i = 2; i <= 128; i*=2)
+    for (auto i = 2; i <= 4096; i*=2)
     {
         printf("%d,", i);
         n_trials_vec.push_back(i);
@@ -131,17 +132,33 @@ int main()
         printf("%d,", elm);
     printf("]\n");
 
-    //Matrix of results : average
-    std::vector<std::vector<float>> avg_resample_trials(n_resample);
-    for (auto& samp : avg_resample_trials)
+    //Matrix of results : average of average
+    std::vector<std::vector<float>> avg_avg_resample_trials(n_resample);
+    for (auto& samp : avg_avg_resample_trials)
     for (auto trial : n_trials_vec)
         samp.push_back(0.);
 
-    //matrix of results : stddev
-    std::vector<std::vector<float>> stddev_resample_trials(n_resample);
-    for (auto& samp : stddev_resample_trials)
+    //matrix of results : stddev of average
+    std::vector<std::vector<float>> stddev_avg_resample_trials(n_resample);
+    for (auto& samp : stddev_avg_resample_trials)
     for (auto trial : n_trials_vec)
         samp.push_back(0.);
+
+    //matrix of results : average of stddev
+    std::vector<std::vector<float>> avg_stddev_resample_trials(n_resample);
+    for (auto& samp : avg_stddev_resample_trials)
+    for (auto trial : n_trials_vec)
+        samp.push_back(0.);
+
+    //matrix of results : stddev of stddev
+    std::vector<std::vector<float>> stddev_stddev_resample_trials(n_resample);
+    for (auto& samp : stddev_stddev_resample_trials)
+    for (auto trial : n_trials_vec)
+        samp.push_back(0.);
+
+    //non-bootstrapped results
+    std::vector<float> nobs_avg_resample(n_resample);
+    std::vector<float> nobs_dev_resample(n_resample);
 
     //Read samples from file
     auto samples = get_samples_from_file("all.csv");
@@ -161,6 +178,19 @@ int main()
         for (auto idx : sub_samples_idx) 
             printf("%d,", idx);
         printf("]\n");
+
+        float no_avg = 0.;
+        for (const auto& elm : sub_samples)
+            no_avg += elm;
+        no_avg /= n_sub;
+        nobs_avg_resample[resample_itr] = no_avg;
+
+        float no_dev = 0.;
+        for (const auto& elm : sub_samples)
+            no_dev += (elm - no_avg) * (elm - no_avg);
+        no_dev /= n_sub;
+        nobs_dev_resample[resample_itr] = sqrt(no_dev);
+
         
         //loop over the number of bootstrap trials
         for (auto trials_itr = 0; trials_itr < n_trials_vec.size(); trials_itr++)
@@ -169,25 +199,59 @@ int main()
 
             printf("Num Trials : %d ,", ntrials);
             std::vector<float> trials_avg(n_averages);
+            std::vector<float> trials_stddev(n_averages);
 
             //Buffer for bootstrapping
-            std::vector<float> bs_data(ntrials);
+            std::vector<float> bs_avg(ntrials);
+            std::vector<float> bs_dev(ntrials);
  
             //For this random subsample, run bootstrap a couple times
             for (auto averages_itr = 0; averages_itr < n_averages; averages_itr++)
             {
+                #if 1
+                bootstrap::simple_samples_avg_stddev<float>(ntrials, 
+                                                            sub_samples.begin(),
+                                                            sub_samples.end(), 
+                                                            bs_avg, 
+                                                            bs_dev,
+                                                            rng);
+                #else
                 bootstrap::simple_samples<float>(ntrials, 
                                                  sub_samples.begin(),
                                                  sub_samples.end(), 
-                                                 bs_data, 
+                                                 bs_avg, 
                                                  rng);
- 
+
+                #endif 
+
+               
+   
+                //average of this run  
                 float avg = 0.;
-                for (const auto& elm : bs_data)
+                for (const auto& elm : bs_avg)
                    avg += elm;
                 avg /= ntrials;
 
                 trials_avg[averages_itr] = avg;
+
+                //stddev of this run
+                #if 0
+                float stddev = 0.;
+                for (const auto& elm : bs_dev)
+                    stddev += (elm - avg) * (elm - avg);
+                stddev = sqrt(stddev / ntrials);
+
+                trials_stddev[averages_itr] = stddev;
+                #else
+                float dev = 0.;
+                for (const auto& elm : bs_dev)
+                    dev += elm;
+                dev /= ntrials;
+
+                trials_stddev[averages_itr] = dev;
+                #endif
+                
+                
             }
 
             //Calculate average of averages
@@ -196,7 +260,7 @@ int main()
                 avg += elm;
             avg /= n_averages;
            
-            avg_resample_trials[resample_itr][trials_itr] = avg;
+            avg_avg_resample_trials[resample_itr][trials_itr] = avg;
 
             //Calculate std.dev. of averages
             float stddev = 0.;
@@ -204,10 +268,23 @@ int main()
                 stddev += (elm - avg) * (elm - avg);
             stddev = sqrt(stddev / n_averages);
                 
-            stddev_resample_trials[resample_itr][trials_itr] = stddev;
+            stddev_avg_resample_trials[resample_itr][trials_itr] = stddev;
 
-            printf("After averaging %d trials, avg: %f with stddev : %f\n", ntrials, avg, stddev);
+            //Calculate average of stddevs
+            avg = 0.;
+            for (const auto& elm : trials_stddev)
+                avg += elm;
+            avg /= n_averages;
+           
+            avg_stddev_resample_trials[resample_itr][trials_itr] = avg;
 
+            //Calculate stddev of stddevs
+            stddev = 0.;
+            for (const auto& elm : trials_stddev)
+                stddev += (elm - avg) * (elm - avg);
+            stddev = sqrt(stddev / n_averages);
+                
+            stddev_stddev_resample_trials[resample_itr][trials_itr] = stddev;
         }
 
         printf("\n");
@@ -215,24 +292,60 @@ int main()
     }//end loop over random subsamples
     printf("\n\n");
 
+    printf("Non-bootstrapped averages\n");
+    for (auto& avg : nobs_avg_resample)
+    {
+        printf("%f\n", avg);
+    }
+    printf("\n");
+
     //Print results
-    printf("Average results matrix:\n");
-    for (auto& samp : avg_resample_trials)
+    printf("Average of Average results matrix:\n");
+    for (auto& samp : avg_avg_resample_trials)
     {
         for (auto avg : samp)
             printf("%f,", avg);
         printf("\n");
     }
+
+/*
+    printf("\n\n");
+    printf("Std.Dev of Avg. results matrix:\n");
+    for (auto& samp : stddev_avg_resample_trials)
+    {
+        for (auto avg : samp)
+            printf("%f,", avg);
+        printf("\n");
+    }
+*/
+
+    printf("\nNon-bootstrapped stdev\n");
+    for (auto& dev : nobs_dev_resample)
+    {
+        printf("%f\n", dev);
+    }
+    printf("\n");
+
 
     printf("\n\n");
-    printf("Std.Dev results matrix:\n");
-    for (auto& samp : stddev_resample_trials)
+    printf("Avg. of Std.Dev results matrix:\n");
+    for (auto& samp : avg_stddev_resample_trials)
     {
         for (auto avg : samp)
             printf("%f,", avg);
         printf("\n");
     }
 
+/*
+    printf("\n\n");
+    printf("Std.Dev of Std.Dev results matrix:\n");
+    for (auto& samp : stddev_stddev_resample_trials)
+    {
+        for (auto avg : samp)
+            printf("%f,", avg);
+        printf("\n");
+    }
+*/
 
 /*
 
