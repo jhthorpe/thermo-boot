@@ -266,9 +266,12 @@ int main()
                 trials_stddev[averages_itr] = dev;
 
                  //Save the best trials
-                 to_file("mse" + std::to_string(resample_itr) + ".txt", bs_mse);
-                 to_file("mae" + std::to_string(resample_itr) + ".txt", bs_mae);
-                 to_file("dev" + std::to_string(resample_itr) + ".txt", bs_dev);
+                 if (trials_itr == n_trials_vec.size() - 1)
+                 {
+                     to_file("mse" + std::to_string(resample_itr) + ".txt", bs_mse);
+                     to_file("mae" + std::to_string(resample_itr) + ".txt", bs_mae);
+                     to_file("dev" + std::to_string(resample_itr) + ".txt", bs_dev);
+                 }
                 
             }
 
