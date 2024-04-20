@@ -11,6 +11,9 @@
  * 
  * Would contstruct hypothetical samples of 10 points from data_0.csv, 
  * 5 points from data_1.csv, and 7 points from data_2.csv.
+ *
+ * This version tests the confidence interval obtained by the "normal" approach for a 
+ * random set of molecules
  * 
  */
 
@@ -23,11 +26,11 @@
 
 //Number of times we resample the population
 //Unsure how many iterations are needed to converge this
-#define N_RESAMPLE 2048
+#define N_RESAMPLE 1
 
 //Number of trials to generate statistics per population. Testing
 //confirmed this converges by 4096 
-#define N_TRIAL 4096
+#define N_TRIAL 10000
 
 /*
  * Count number of lines (\n characters) in a file
@@ -165,7 +168,7 @@ int main(int argc, char* argv[])
     auto N_vec = proc_input(argc, argv);
     auto N_samples = N_vec.size();
 
-    //Total number of species
+    //Total number of species in each resample
     int N_total = 0;
     for (auto N_sub : N_vec)
         N_total += N_sub;
@@ -188,27 +191,46 @@ int main(int argc, char* argv[])
     //Initialize random number generator
     randutils::mt19937_rng rng;
 
-    //Buffers for the trials
-    std::vector<float> mse(N_TRIAL);
-    std::vector<float> mae(N_TRIAL);
-    std::vector<float> dev(N_TRIAL);
+    //bootstrapper
+    bootstrap::bs_sim<float> bs;
+
+    //Lambda for standard deviation
+    auto conf95 = [](const size_t n, bootstrap::bs_sim<float>::data_buffer_t& vec)
+    {
+        float mse = 0.;
+        for (size_t i = 0; i < n; i++)
+            mse += vec[i];
+        mse /= n;
+
+        float dev = 0.;
+        for (size_t i = 0; i < n; i++)
+            dev += (vec[i] - mse) * (vec[i] - mse);
+        return 2.*sqrt(dev / n);
+    };
+
+    auto mean = [](const size_t n, bootstrap::bs_sim<float>::data_buffer_t& vec)
+    {
+        float mse = 0.;
+        for (size_t i = 0; i < n; i++)
+            mse += vec[i];
+        mse /= n;
+        return mse;
+    };
 
     //Buffers for tracking across resamples 
-    std::vector<float> mse_avg_samples(N_RESAMPLE);
-    std::vector<float> mse_dev_samples(N_RESAMPLE);
-    std::vector<float> mae_avg_samples(N_RESAMPLE);
-    std::vector<float> mae_dev_samples(N_RESAMPLE);
-    std::vector<float> dev_avg_samples(N_RESAMPLE);
-    std::vector<float> dev_dev_samples(N_RESAMPLE);
-
+    std::vector<float> dev_avg(N_RESAMPLE);
 
     //Read in samples from file
+    size_t N_total_samples = 0.; //size of total dataset
     std::vector<std::vector<float>> samples;
     for (int sub_idx = 0; sub_idx < N_samples; sub_idx++) 
     {
         std::string fname = "data_" + std::to_string(sub_idx) + ".csv";
-        samples.push_back(get_samples_from_file(fname));
+        samples.emplace_back(get_samples_from_file(fname));
+        N_total_samples += samples[sub_idx].size();
     }
+    printf("N_total_samples : %zu\n", N_total_samples);
+    
 
     //Iterate over the number of resamples for this set
     for (size_t resample_itr = 0; resample_itr < N_RESAMPLE; resample_itr++)
@@ -220,69 +242,66 @@ int main(int argc, char* argv[])
         //Copy data into buffer
         for (size_t sub = 0; sub < N_samples; sub++)
         for (size_t idx = 0; idx < N_vec[sub]; idx++)
-           buf[off[sub] + idx] = samples[sub][subsamples_idx[sub][idx]]; 
+            buf[off[sub] + idx] = samples[sub][subsamples_idx[sub][idx]]; 
 
-        //Run statistics
-        bootstrap::simple_samples_avg_stddev<float>(N_TRIAL, 
-                                                    buf.begin(),
-                                                    buf.end(), 
-                                                    mse, 
-                                                    mae, 
-                                                    dev,
-                                                    rng);
+        bs.basic_bootstrap(N_TRIAL, buf.begin(), buf.end(), conf95, rng);
+//        bs.basic_bootstrap(N_TRIAL, buf.begin(), buf.end(), mean, rng);
 
-        //Generate statistics for this subsample
-        float itr_mse = 0.;
-        float itr_mae = 0.;
-        float itr_dev = 0.;
+        dev_avg[resample_itr] = bs.average();
 
-        for (const auto& elm : mse)
-            itr_mse += elm;
-        itr_mse /= mse.size();
+        to_file("raw_"  + std::to_string(resample_itr) + ".txt", buf);
+        to_file("hist_" + std::to_string(resample_itr) + ".txt", bs.trial_buf());
+        printf("Bootstrap stats: %f %f %f %f %f %f\n", bs.average(), bs.stddev(), 
+                                                       bs.lo_2sigma(), bs.hi_2sigma(), 
+                                                       bs.lo_2sigma_pivot(), bs.hi_2sigma_pivot());
 
-        for (const auto& elm : mae)
-            itr_mae += elm;
-        itr_mae /= mae.size();
+        //TESTING NONBOOTSTRAP APPROACH
+        float nobs_avg = bootstrap::average<float>(buf.size(), buf);
+        float nobs_dev = bootstrap::stddev<float>(buf.size(), buf, nobs_avg);
+        float nobs_lo = nobs_avg - 2.*nobs_dev;
+        float nobs_hi = nobs_avg + 2.*nobs_dev;
 
-        for (const auto& elm : dev)
-            itr_dev += elm;
-        itr_dev /= dev.size();
+        float bs_lo = nobs_avg - bs.average();
+        float bs_hi = nobs_avg + bs.average();
 
-        mse_avg_samples[resample_itr] = itr_mse;
-        mae_avg_samples[resample_itr] = itr_mae;
-        dev_avg_samples[resample_itr] = itr_dev;
-        
+        int num_lo = 0; 
+        int num_hi = 0; 
+        int num_bs_lo = 0;
+        int num_bs_hi = 0;
+
+        int num = 0.;
+        for (auto subsamp : samples)
+        for (auto species : subsamp)
+        {
+            if (species < nobs_lo) num_lo++;
+            if (species > nobs_hi) num_hi++;
+            if (species < bs_lo) num_bs_lo++;
+            if (species > bs_hi) num_bs_hi++;
+            num++;
+        }
+        printf("num is... %d\n", num);
+        printf("Ntotal is... %zu\n", N_total_samples);
+
+        printf("No BS predicted bounds : %f %f\n", nobs_lo, nobs_hi);
+        printf("No BS actual percent lo, hi: %f %f\n", (float) (100.*num_lo)/N_total_samples, (float) (100.*num_hi)/N_total_samples);
+
+        printf("BS predicted data : %f %f\n", bs_lo, bs_hi);
+        printf("BS actual percent lo, hi: %f %f\n", (float) (100.*num_bs_lo)/N_total_samples, (float) (100.*num_bs_hi)/N_total_samples);
+
     }
 
-    //From these, generate Bootstrapped MAE, MSE, and DEV of these ratios of subsamples
-    float total_mse = 0.;
-    float total_mae = 0.;
-    float total_dev = 0.;
-    float dev_dev = 0.;
+    //Determine 95\% confidence intervals and 95% confidence pivots
+    std::sort(dev_avg.begin(), dev_avg.end());
+    
+    float average = bootstrap::average<float>(N_RESAMPLE, dev_avg);
 
-    for (const auto& elm : mse_avg_samples)
-        total_mse += elm;
-    total_mse /= mse_avg_samples.size();
+    size_t lo_2sigma_idx = std::max((long) 0, (long) std::floor(N_RESAMPLE * 0.025) - 1);
+    size_t hi_2sigma_idx = std::min((long) (N_RESAMPLE - 1), (long) std::ceil(N_RESAMPLE * 0.975) - 1);
+    float lo_2sigma = dev_avg[lo_2sigma_idx];
+    float hi_2sigma = dev_avg[hi_2sigma_idx];
+    float lo_2sigma_pivot = 2*average - hi_2sigma;
+    float hi_2sigma_pivot = 2*average - lo_2sigma;
 
-    for (const auto& elm : mae_avg_samples)
-        total_mae += elm;
-    total_mae /= mae_avg_samples.size();
-
-    for (const auto& elm : dev_avg_samples)
-        total_dev += elm;
-    total_dev /= dev_avg_samples.size();
-
-    for (const auto& elm : dev_avg_samples)
-        dev_dev += (elm - total_dev) * (elm - total_dev); 
-    dev_dev = sqrt(dev_dev/dev_avg_samples.size());
-        
-
-    printf("Total input size: %zu\n", N_samples);
-    printf("Subsample sizes [");
-    for (auto& sub : N_vec)
-        printf("%d, ", sub);
-    printf("]\n");
-    printf("MSE  MAE   DEV    DEV_DEV\n");
-    printf("%f %f %f %f\n", total_mse, total_mae, total_dev, dev_dev);
+    printf("%f %f %f %f %f\n", average, lo_2sigma, hi_2sigma, lo_2sigma_pivot, hi_2sigma_pivot);
 
 }
