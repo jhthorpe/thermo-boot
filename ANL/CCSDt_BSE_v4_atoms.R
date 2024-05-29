@@ -347,16 +347,21 @@ plot(data$CCSDt_CBS1_extdist_q, (data$CCSDt_CBS1_err - mu_CBS1_err)/data$X.all_e
 
 
 ###########################################################################
-# STEP 2 : ERR per e
+# STEP 2 : Fit number of atoms
+# WTF why is this better....
 ###########################################################################
 
 #constant plus num e plus num e pair
-func <- function(df, a=0, b=0, c=0, d=0, e=0, f=0)
+func <- function(df, a, a_H=0, a_C=0, a_N=0, a_O=0)
 {
-   a +  (b)*df$X.all_e + (c)*(df$X.all_e*(df$X.all_e - 1)/2) + (d)*df$X.all_e^3 + (e)*((df$X.all_e*(df$X.all_e - 1)/2))^2
+   return(
+     a 
+     + (a_H)*df$X.H + (a_C)*df$X.C*4 + (a_N)*df$X.N*5 + (a_O)*df$X.O*6
+   )
+   
 }
 
-model <- nls(data$CCSDt_CBS1_err ~ func(data, mya, myb, myc, myd, mye), data=data, start=c(mya=-0.51, myb=1, myc=0.1, myd=0.1, mye=0.1))
+model <- nls(data$CCSDt_CBS1_err ~ func(data, a, a_H, a_C, a_N, a_O), data=data, start=c(a=-0.51,a_H=0.1, a_C=0.1, a_N=0.1, a_O=0.1))
 summary(model)
 data$model <- predict(model)
 
@@ -389,24 +394,22 @@ plot(data$CCSDt_CBS1_extdist_q, data$CCSDt_CBS1_err - data$model)
 
 print("END OF 2")
 
-
 ###########################################################################
-# STEP 3 : LINEAR DEPENDENCE WITH EXTRAP DISTANCE
+# STEP 2 : Fit number of atoms
+# WTF why is this better....
 ###########################################################################
 
 #constant plus num e plus num e pair
-func <- function(df, a=0, b=0, c=0, d=0, e=0, f=0)
+func <- function(df, a,a_C=0, a_N=0, a_O=0)
 {
- return(
-  a 
-  +  (b)*df$X.all_e + (c)*(df$X.all_e*(df$X.all_e - 1)/2) + (d)*((df$X.all_e*(df$X.all_e - 1)/2))^2
-  + e*df$CCSDt_CBS1_extdist_q 
- )
-  #+ e*asinh(-f*df$CCSDt_CBS1_extdist_q)
+  return(
+    a 
+    + (a_C)*df$X.C*4*3/2 + (a_N)*df$X.N*5*4/2 + (a_O)*df$X.O*6*5/2
+  )
   
 }
 
-model <- nls(data$CCSDt_CBS1_err ~ func(data, mya, myb, myc, myd, mye), data=data, start=c(mya=3.472e-02, myb=-6.825e-03, myc=3.936e-03, myd=-3.959e-06, mye=-0.5))
+model <- nls(data$CCSDt_CBS1_err ~ func(data, a, a_C, a_N, a_O), data=data, start=c(a=-0.51, a_C=0.1, a_N=0.1, a_O=0.1))
 summary(model)
 data$model <- predict(model)
 
@@ -437,27 +440,34 @@ points(data$CCSDt_CBS1_extdist_q, data$model, type='p', col='red')
 plot(data$CCSDt_CBS1_extdist_q, data$CCSDt_CBS1_err - data$model)
 
 
-print("END OF 3")
+print("END OF 2: JUST ATOMS")
 
 ###########################################################################
-# STEP 4 : Cleanup
+# STEP 3 : Fit number of atoms + 
 ###########################################################################
 
 #constant plus num e plus num e pair
-func <- function(df, a=0, b=0, c=0, d=0, e=0, f=0)
+func <- function(df, a, a_H=0, a_C=0, a_N=0, a_O=0, a_X=0, a_Y, b_C=0, b_N=0, b_O=0, b_dst=0)
 {
+  X = (df$X.all_e - (df$X.C*6 + df$X.N*7 + df$X.O*8))
+  X = (df$X.val_e - (df$X.C*4 + df$X.N*5 + df$X.O*6))
   return(
-    a
-    + (b)*(df$X.all_e*(df$X.all_e - 1)/2)
-   # + (d)*asinh(-e*df$CCSDt_CBS1_extdist_q)
+    a 
+    + (a_C)*df$X.C*4*3/2 + (a_N)*df$X.N*5*4/2 + (a_O)*df$X.O*6*5/2 
+    + a_X*df$CCSDt_CBS1*((a_H)*df$X.H + (a_C)*df$X.C*4 + (a_N)*df$X.N*5 + (a_O)*df$X.O*6)
   )
-  #a 
-  #+  (b)*(df$X.all_e*(df$X.all_e - 1)/2) #+ (c)*((df$X.all_e*(df$X.all_e - 1)/2))^2
-  # + d*df$CCSDt_CBS1_extdist_q 
-
+  #+ a_X*df$CCSDt_CBS1*((a_C)*df$X.C*4*3/2 + (a_N)*df$X.N*5*4/2 + (a_O)*df$X.O*6*5/2)
+  #+ a_X*df$CCSDt_CBS1_extdist_q*((a_C)*df$X.C*4*3/2 + (a_N)*df$X.N*5*4/2 + (a_O)*df$X.O*6*5/2)
+  #+ (a_X)*X*(X-1)/2 #not much help
+  #+ df$CCSDt_CBS1_extdist_q*((b_C)*df$X.C*4 + (b_N)*df$X.N*5 + (b_O)*df$X.O*6)
+  #+ a_X*df$CCSDt_CBS1*((a_C)*df$X.C*4 + (a_N)*df$X.N*5 + (a_O)*df$X.O*6)
+  #+ a_X*df$CCSDt_CBS1_extdist_q*((a_H)*df$X.H + (a_C)*df$X.C*4 + (a_N)*df$X.N*5 + (a_O)*df$X.O*6)
 }
 
-model <- nls(data$CCSDt_CBS1_err ~ func(data, mya, myb), data=data, start=c(mya=0.188, myb=0.1))
+#model <- nls(data$CCSDt_CBS1_err ~ func(data, a, a_C, a_N, a_O, b_C, b_N, b_O), data=data, start=c(a=-0.1443717, a_C=0.029030, a_N=0.023552, a_O=0.026599, b_C=0.1, b_N=0.1, b_O=0.1))
+model <- nls(data$CCSDt_CBS1_err ~ func(data, a, a_H, a_C, a_N, a_O, a_X), data=data, start=c(a=-0.1443717, a_H=0.1, a_C=0.029030, a_N=0.023552, a_O=0.026599, a_X=0.001))
+#model <- nls(data$CCSDt_CBS1_err ~ func(data, a, a_C, a_N, a_O), data=data, start=c(a=-0.1443717, a_C=0.029030, a_N=0.023552, a_O=0.026599))
+
 summary(model)
 data$model <- predict(model)
 
@@ -488,116 +498,8 @@ points(data$CCSDt_CBS1_extdist_q, data$model, type='p', col='red')
 plot(data$CCSDt_CBS1_extdist_q, data$CCSDt_CBS1_err - data$model)
 
 
-print("END OF 4: cleanup")
+print("END OF 3: ATOMS + EXTRA VALANCE")
 
 
-
-###########################################################################
-# STEP 5 : Add in EXT Dist
-###########################################################################
-
-#constant plus num e plus num e pair
-func <- function(df, a=0, b=0, c=0, d=0, e=0, f=0)
-{
-  return(
-    a
-    + (b)*(df$X.all_e*(df$X.all_e - 1)/2)
-    + (c)*df$CCSDt_CBS1_extdist_q
-  )
-  #a 
-  #+  (b)*(df$X.all_e*(df$X.all_e - 1)/2) #+ (c)*((df$X.all_e*(df$X.all_e - 1)/2))^2
-  # + d*df$CCSDt_CBS1_extdist_q 
-  
-}
-
-model <- nls(data$CCSDt_CBS1_err ~ func(data, mya, myb, myc), data=data, start=c(mya=0.188, myb=0.1, myc=-0.5))
-summary(model)
-data$model <- predict(model)
-
-
-#Stats
-mean(abs(err(data, model)))
-sqrt(mean((err(data, model))^2))
-max(abs(err(data, model)))
-
-mean(abs(err(data, model) / data$X.all_e))
-sqrt(mean((err(data, model) / data$X.all_e)^2)) 
-sd(err(data, model) / data$X.all_e) 
-max(abs(err(data, model) / data$X.all_e)) 
-
-
-par(mfrow = c(3,2))
-
-plot(data$X.all_e, data$CCSDt_CBS1_err)
-points(data$X.all_e, data$model, type='p', col='red')
-plot(data$X.all_e, data$CCSDt_CBS1_err - data$model)
-
-plot(data$CCSDt_CBS1, data$CCSDt_CBS1_err)
-points(data$CCSDt_CBS1, data$model, type='p', col='red')
-plot(data$CCSDt_CBS1, data$CCSDt_CBS1_err - data$model)
-
-plot(data$CCSDt_CBS1_extdist_q, data$CCSDt_CBS1_err)
-points(data$CCSDt_CBS1_extdist_q, data$model, type='p', col='red')
-plot(data$CCSDt_CBS1_extdist_q, data$CCSDt_CBS1_err - data$model)
-
-
-print("END OF 5: extdist")
-
-
-###########################################################################
-# STEP 6 : Linear coupling between #e and DST(Q)
-###########################################################################
-
-#constant plus num e plus num e pair
-func <- function(df, a=0, b=0, c=0, d=0, e=0, f=0)
-{
-  return(
-    a
-    + (b)*(df$X.all_e*(df$X.all_e - 1)/2)
-    + (c)*df$CCSDt_CBS1_extdist_q
-    + (d)*df$CCSDt_CBS1_extdist_q*df$X.all_e
-  )
-  #a 
-  #+  (b)*(df$X.all_e*(df$X.all_e - 1)/2) #+ (c)*((df$X.all_e*(df$X.all_e - 1)/2))^2
-  # + d*df$CCSDt_CBS1_extdist_q 
-  
-}
-
-model <- nls(data$CCSDt_CBS1_err ~ func(data, mya, myb, myc, myd), data=data, start=c(mya=-0.018, myb=1.8E-3, myc=-0.3, myd=0.01))
-summary(model)
-data$model <- predict(model)
-
-
-#Stats
-mean(abs(err(data, model)))
-sqrt(mean((err(data, model))^2))
-max(abs(err(data, model)))
-
-mean(abs(err(data, model) / data$X.all_e))
-sqrt(mean((err(data, model) / data$X.all_e)^2)) 
-sd(err(data, model) / data$X.all_e) 
-max(abs(err(data, model) / data$X.all_e)) 
-
-
-par(mfrow = c(3,2))
-
-plot(data$X.all_e, data$CCSDt_CBS1_err)
-points(data$X.all_e, data$model, type='p', col='red')
-plot(data$X.all_e, data$CCSDt_CBS1_err - data$model)
-
-plot(data$CCSDt_CBS1, data$CCSDt_CBS1_err)
-points(data$CCSDt_CBS1, data$model, type='p', col='red')
-plot(data$CCSDt_CBS1, data$CCSDt_CBS1_err - data$model)
-
-plot(data$CCSDt_CBS1_extdist_q, data$CCSDt_CBS1_err)
-points(data$CCSDt_CBS1_extdist_q, data$model, type='p', col='red')
-plot(data$CCSDt_CBS1_extdist_q, data$CCSDt_CBS1_err - data$model)
-
-#par(mfrow = c(3,1))
-#hist(data$CCSDt_CBS1_err)
-#hist(data$model)
-#hist(data$CCSDt_CBS1_err - data$model)
-
-print("END OF 6: linear coupling btwn #e and extdist")
 
 
