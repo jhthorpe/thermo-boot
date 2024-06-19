@@ -1,5 +1,5 @@
-# This version of the script is designed to include the information about
-# Lewis structures and bonding. 
+# This .R script tests if (TQf) can be used as a reliable predictor of the size
+# of post(T) contributions to raw and reaction energies
 #
 #
 library(ggplot2)
@@ -13,10 +13,93 @@ library(data.table)
 rm(list = ls())
 
 options(max.print=100000)
+au2kcal = 627.5186025
 
 setwd('/Users/37348458/thermo-boot/TQ_survey')
 raw <- read.csv('data_pVDZ.csv')
 
+#take out h as it has no correlation and screws up some fits
+raw <- raw[raw$Species != "h",]
+#raw <- raw[raw$Species != "n2o4",]
+
+####################################################################
+# ADD IN THE DATA WE NEED
+#
+
+raw[["CCSD"]] <- raw$CCSD..cc.pVDZ
+raw[["CCSD(T)"]] <- raw$CCSD.T..cc.pVDZ
+raw[["CCSD(TQf)"]] <- raw$CCSD.TQf..cc.pVDZ
+
+raw[["CCSDT(Q)_L - CCSD(T)"]] <- raw$CCSDT.Q._L.cc.pVDZ - raw$CCSD.T..cc.pVDZ
+raw[["CCSD(T) - CCSD"]] <- raw$CCSD.T..cc.pVDZ - raw$CCSD.cc.pVDZ
+raw[["CCSD(TQf) - CCSD"]] <- raw$CCSD.TQf..cc.pVDZ - raw$CCSD.cc.pVDZ
+raw[["[CCSD(T) - CCSD]/CCSD(T)"]] <- (raw$CCSD.T..cc.pVDZ - raw$CCSD.cc.pVDZ)/raw$CCSD.T..cc.pVDZ
+raw[["[CCSD(TQf) - CCSD]/CCSD(TQf)"]] <- (raw$CCSD.TQf..cc.pVDZ - raw$CCSD.cc.pVDZ)/raw$CCSD.TQf..cc.pVDZ
+raw[["CCSD(TQf) - CCSD(T)"]] <- raw$CCSD.TQf..cc.pVDZ - raw$CCSD.T..cc.pVDZ
+raw[["[CCSD(TQf) - CCSD(T)]/CCSD(TQf)"]] <- (raw$CCSD.TQf..cc.pVDZ - raw$CCSD.T..cc.pVDZ)/raw$CCSD.TQf..cc.pVDZ
+
+raw[["[CCSD(TQf) - CCSD(T)]/CCSD"]] <- (raw$CCSD.TQf..cc.pVDZ - raw$CCSD.T..cc.pVDZ)/raw$CCSD.cc.pVDZ
+
+raw[["CCSD(T-5) - CCSD(T)"]] <- raw$CCSD.T.5..cc.pVDZ - raw$CCSD.T..cc.pVDZ
+
+####################################################################
+# Models we want to test
+#
+
+# 1. (T) - D
+model_E_qL_tmD <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`CCSD(T) - CCSD`, data=raw, start=c(a=0, b=1))
+summary(model_E_qL_tmD)
+
+# 2. (TQf) - D 
+model_E_qL_tqfmD <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`CCSD(TQf) - CCSD`, data=raw, start=c(a=0, b=1))
+summary(model_E_qL_tqfmD)
+
+# 3. [(T) - D ] / (T)
+model_E_qL_tmDdt <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`[CCSD(T) - CCSD]/CCSD(T)`, data=raw, start=c(a=0, b=-1))
+summary(model_E_qL_tmDdt)
+
+# 4. [(TQf) - D ] / (TQf)
+model_E_qL_tqfmDdtqf <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`[CCSD(TQf) - CCSD]/CCSD(TQf)`, data=raw, start=c(a=0, b=-1))
+summary(model_E_qL_tqfmDdtqf)
+
+# 5. (TQf) - (T)
+model_E_qL_tqfmt <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`CCSD(TQf) - CCSD(T)`, data=raw, start=c(a=0, b=-1))
+summary(model_E_qL_tqfmt)
+
+# 6. [(TQf) - (T)] / (TQf)
+model_E_qL_tqfmtdtqf <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`[CCSD(TQf) - CCSD(T)]/CCSD(TQf)`, data=raw, start=c(a=0, b=-1))
+summary(model_E_qL_tqfmtdtqf)
+
+# 7. [(TQf) - (T)] / D
+model_E_qL_tqfmtdD <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`[CCSD(TQf) - CCSD(T)]/CCSD`, data=raw, start=c(a=0, b=-1))
+summary(model_E_qL_tqfmtdD)
+
+
+#raw_non2o4 <- raw[raw$Species != "n2o4",]
+#model_E_qL_tqf_t <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`CCSD(TQf) - CCSD(T)`, data=raw, start=c(a=0, b=1))
+#model_E_qL_tqf_t_non2o4 <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`CCSD(TQf) - CCSD(T)`, data=raw_non2o4, start=c(a=0, b=1))
+
+#model_E_qL_tqf_t_t5_t <- nls(`CCSDT(Q)_L - CCSD(T)` ~ a + b*`CCSD(TQf) - CCSD(T)` + c*`CCSD(T-5) - CCSD(T)`, data=raw, start=c(a=0, b=1, c=1))
+#summary(model_E_qL_tqf_t_t5_t)
+
+
+raw[["HLC pred (T)-D"]] <- predict(model_E_qL_tmD, newdata=raw)
+raw[["HLC pred (TQf)-D"]] <- predict(model_E_qL_tqfmD, newdata=raw)
+raw[["HLC pred [(T)-D]/(T)"]] <- predict(model_E_qL_tmDdt, newdata=raw)
+raw[["HLC pred [(TQf)-D]/(TQf)"]] <- predict(model_E_qL_tqfmDdtqf, newdata=raw)
+raw[["HLC pred (TQf)-(T)"]] <- predict(model_E_qL_tqfmt, newdata=raw)
+raw[["HLC pred [(TQf)-(T)]/(TQf)"]] <- predict(model_E_qL_tqfmtdtqf, newdata=raw)
+raw[["HLC pred [(TQf)-(T)]/D"]] <- predict(model_E_qL_tqfmtdD, newdata=raw)
+
+
+
+
+
+
+
+
+####################################################################
+# split data into reference and non-reference
 #Split noref and ref data frames
 ref_strs <- c("h2", "b2h6", "ch4", "h2o", "nh3", "hf")
 tf <- rep(FALSE, times = nrow(raw))
@@ -28,6 +111,8 @@ for (i in 1:nrow(raw))
   }
 }
 raw$is_ref <- tf
+
+
 data_noref <- raw[raw$is_ref == FALSE, ]
 data_ref <- raw[raw$is_ref == TRUE, ]
 
@@ -44,7 +129,6 @@ for (r in ref_strs)
   if (!any(ref$Species %in% r)) stop("Reference is missing")
 }
 
-
 ####################################################################
 # Greatest Common Denominator function for a list of integers
 gcd <- function(a)
@@ -56,6 +140,11 @@ gcd <- function(a)
     if (all(g ==0)) return (i)
   }
   return(1)
+}
+
+rms <- function(x)
+{
+  return (sqrt(mean(x^2)))
 }
 
 ####################################################################
@@ -432,6 +521,68 @@ for (col in col_names)
   rxns[[col]] <- new_col
 }#loop over subset of cols
 
+################################################################################
+# (Q)_L - (T) predictions
+
+par(mfrow = c(4,4))
+
+message(sprintf("RMS of (T) - D predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` - rxns$`HLC pred (T)-D`)*au2kcal))
+plot(data$`CCSD(T) - CCSD`, data$`CCSDT(Q)_L - CCSD(T)`)
+points(data$`CCSD(T) - CCSD`, data$`HLC pred (T)-D`, col='red')
+plot(rxns$`CCSD(T) - CCSD`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+points(rxns$`CCSD(T) - CCSD`*au2kcal, rxns$`HLC pred (T)-D`*au2kcal, col='red')
+
+message(sprintf("RMS of (TQf) - D predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` -rxns$`HLC pred (TQf)-D`)*au2kcal))
+plot(data$`CCSD(TQf) - CCSD`, data$`CCSDT(Q)_L - CCSD(T)`)
+points(data$`CCSD(TQf) - CCSD`, data$`HLC pred (TQf)-D`, col='red')
+plot(rxns$`CCSD(TQf) - CCSD`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+points(rxns$`CCSD(TQf) - CCSD`*au2kcal, rxns$`HLC pred (TQf)-D`*au2kcal, col='red')
+
+message(sprintf("RMS of [(T) - D]/(T) predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` -rxns$`HLC pred [(T)-D]/(T)`)*au2kcal))
+plot(data$`[CCSD(T) - CCSD]/CCSD(T)`, data$`CCSDT(Q)_L - CCSD(T)`)
+points(data$`[CCSD(T) - CCSD]/CCSD(T)`, data$`HLC pred [(T)-D]/(T)`, col='red')
+plot(rxns$`[CCSD(T) - CCSD]/CCSD(T)`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+points(rxns$`[CCSD(T) - CCSD]/CCSD(T)`*au2kcal, rxns$`HLC pred [(T)-D]/(T)`*au2kcal, col='red')
+
+message(sprintf("RMS of [(TQf) - D]/(TQf) predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` -rxns$`HLC pred [(TQf)-D]/(TQf)`)*au2kcal))
+plot(data$`[CCSD(TQf) - CCSD]/CCSD(TQf)`, data$`CCSDT(Q)_L - CCSD(T)`)
+points(data$`[CCSD(TQf) - CCSD]/CCSD(TQf)`, data$`HLC pred [(TQf)-D]/(TQf)`, col='red')
+plot(rxns$`[CCSD(TQf) - CCSD]/CCSD(TQf)`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+points(rxns$`[CCSD(TQf) - CCSD]/CCSD(TQf)`*au2kcal, rxns$`HLC pred [(TQf)-D]/(TQf)`*au2kcal, col='red')
+
+
+raw[["HLC pred (TQf)-(T)"]] <- predict(model_E_qL_tqfmt, newdata=raw)
+message(sprintf("RMS of [(TQf) - (T)] predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` -rxns$`HLC pred (TQf)-(T)`)*au2kcal))
+plot(data$`CCSD(TQf) - CCSD(T)`, data$`CCSDT(Q)_L - CCSD(T)`)
+points(data$`CCSD(TQf) - CCSD(T)`, data$`HLC pred (TQf)-(T)`, col='red')
+plot(rxns$`CCSD(TQf) - CCSD(T)`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+points(rxns$`CCSD(TQf) - CCSD(T)`*au2kcal, rxns$`HLC pred (TQf)-(T)`*au2kcal, col='red')
+
+
+message(sprintf("RMS of [(TQf) - (T)]/(TQf) predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` -rxns$`HLC pred [(TQf)-(T)]/(TQf)`)*au2kcal))
+plot(data$`[CCSD(TQf) - CCSD(T)]/CCSD(TQf)`, data$`CCSDT(Q)_L - CCSD(T)`)
+points(data$`[CCSD(TQf) - CCSD(T)]/CCSD(TQf)`, data$`HLC pred [(TQf)-(T)]/(TQf)`, col='red')
+plot(rxns$`[CCSD(TQf) - CCSD(T)]/CCSD(TQf)`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+points(rxns$`[CCSD(TQf) - CCSD(T)]/CCSD(TQf)`*au2kcal, rxns$`HLC pred [(TQf)-(T)]/(TQf)`*au2kcal, col='red')
+
+message(sprintf("RMS of [(TQf) - (T)]/D predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` -rxns$`HLC pred [(TQf)-(T)]/D`)*au2kcal))
+plot(data$`[CCSD(TQf) - CCSD(T)]/CCSD`, data$`CCSDT(Q)_L - CCSD(T)`)
+points(data$`[CCSD(TQf) - CCSD(T)]/CCSD`, data$`HLC pred [(TQf)-(T)]/D`, col='red')
+plot(rxns$`[CCSD(TQf) - CCSD(T)]/CCSD`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+points(rxns$`[CCSD(TQf) - CCSD(T)]/CCSD`*au2kcal, rxns$`HLC pred [(TQf)-(T)]/D`*au2kcal, col='red')
+
+
+#message(sprintf("RMS of (TQf) - (T) + (T-5) - (T)predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` - rxns$`HLC pred (TQf)-(T) + (T-5)-(T)`)*au2kcal))
+#plot(data$`CCSD(TQf) - CCSD(T)`, data$`CCSDT(Q)_L - CCSD(T)`)
+#points(data$`CCSD(TQf) - CCSD(T)`, data$`HLC pred (TQf)-(T) + (T-5)-(T)`, col='red')
+#plot(rxns$`CCSD(TQf) - CCSD(T)`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+#points(rxns$`CCSD(TQf) - CCSD(T)`*au2kcal, rxns$`HLC pred (TQf)-(T)`*au2kcal, col='red')
+
+#message(sprintf("RMS of (TQf) - (T) no n2o4 predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` - rxns$`HLC pred (TQf)-(T) no n2o4`)*au2kcal))
+#plot(data$`CCSD(TQf) - CCSD(T)`, data$`CCSDT(Q)_L - CCSD(T)`)
+#points(data$`CCSD(TQf) - CCSD(T)`, data$`HLC pred (TQf)-(T) no n2o4`, col='red')
+#plot(rxns$`CCSD(TQf) - CCSD(T)`*au2kcal, rxns$`CCSDT(Q)_L - CCSD(T)`*au2kcal)
+#points(rxns$`CCSD(TQf) - CCSD(T)`*au2kcal, rxns$`HLC pred (TQf)-(T) no n2o4`*au2kcal, col='red')
 
 
 
