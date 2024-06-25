@@ -174,25 +174,27 @@ raw_TZ[["CCSD(TQf) - CCSD(TQ) : TZ per e"]] <- raw_TZ[["CCSD(TQf) : TZ per e"]] 
 
 #DZ
 par(mfrow = c(1,1))
-plot(raw_DZ[["CCSD(TQf) - CCSD(T) : DZ"]], raw_DZ[["CCSD(TQ) - CCSD(T) : DZ"]])
+plot(raw_TZ[["CCSD(TQf) - CCSD(T) : TZ"]], raw_TZ[["CCSD(TQ) - CCSD(T) : TZ"]])
 
-hist(raw_DZ[["CCSD(TQf) - CCSD(TQ) : DZ"]], 
+hist(raw_TZ[["CCSD(TQf) - CCSD(TQ) : TZ"]], 
      breaks=30,
      main="",
-      xlab="Factorization Error of CCSD(T)[Q]/cc-pVDZ (a.u.)")
+      xlab="Factorization Error of CCSD(T)[Q]/cc-pVTZ (a.u.)")
 
-mean(raw_DZ[["CCSD(TQf) - CCSD(TQ) : DZ"]])
-rse(raw_DZ[["CCSD(TQf) - CCSD(TQ) : DZ"]])
+mean(raw_TZ[["CCSD(TQf) - CCSD(TQ) : TZ"]])
+rse(raw_TZ[["CCSD(TQf) - CCSD(TQ) : TZ"]])
 
-raw_DZ[["Species"]][[which.min(raw_DZ$`CCSD(TQf) - CCSD(TQ) : DZ`)]]
-raw_DZ[["Species"]][[which.max(raw_DZ$`CCSD(TQf) - CCSD(TQ) : DZ`)]]
+raw_TZ[["Species"]][[which.min(raw_TZ$`CCSD(TQf) - CCSD(TQ) : TZ`)]]
+raw_TZ[["Species"]][[which.max(raw_TZ$`CCSD(TQf) - CCSD(TQ) : TZ`)]]
+
+
 
 ###################################################################
 # BOOTSTRAP RAW ERRORS
 
 # MEAN 
 
-raw_bs <- boot(data=data.frame(raw_DZ[["CCSD(TQf) - CCSD(TQ) : DZ"]]), statistic=bs_vals, R=10000, func=mean)
+raw_bs <- boot(data=data.frame(raw_TZ[["CCSD(TQf) - CCSD(TQ) : TZ"]]), statistic=bs_vals, R=10000, func=mean)
 print(raw_bs)
 plot(raw_bs)
 
@@ -202,7 +204,7 @@ print(raw_bs_ci$bca[5])
 # 
 
 #RSE
-raw_bs <- boot(data=data.frame(raw_DZ[["CCSD(TQf) - CCSD(TQ) : DZ"]]), statistic=bs_vals, R=10000, func=rse)
+raw_bs <- boot(data=data.frame(raw_TZ[["CCSD(TQf) - CCSD(TQ) : TZ"]]), statistic=bs_vals, R=10000, func=rse)
 print(raw_bs)
 plot(raw_bs)
 
@@ -211,29 +213,30 @@ print(raw_bs_ci$bca[4])
 print(raw_bs_ci$bca[5])
 
 
+
 ####################################################################
 # split data into reference and non-reference
 #Split noref and ref data frames
 ref_strs <- c("h2", "b2h6", "ch4", "h2o", "nh3", "hf")
-tf <- rep(FALSE, times = nrow(raw_DZ))
-for (i in 1:nrow(raw_DZ))
+tf <- rep(FALSE, times = nrow(raw_TZ))
+for (i in 1:nrow(raw_TZ))
 {
-  if (any(ref_strs %in% raw_DZ$Species[i]))
+  if (any(ref_strs %in% raw_TZ$Species[i]))
   {
     tf[i] <- TRUE
   }
 }
-raw_DZ$is_ref <- tf
+raw_TZ$is_ref <- tf
 
 
-data_noref_DZ <- raw_DZ[raw_DZ$is_ref == FALSE, ]
-data_ref_DZ <- raw_DZ[raw_DZ$is_ref == TRUE, ]
+data_noref_TZ <- raw_TZ[raw_TZ$is_ref == FALSE, ]
+data_ref_TZ <- raw_TZ[raw_TZ$is_ref == TRUE, ]
 
 #remove any NaNs
 #data <- na.omit(data_noref)
 #ref <- na.omit(data_ref)
-data <- data_noref_DZ
-ref <- data_ref_DZ
+data <- data_noref_TZ
+ref <- data_ref_TZ
 
 #double check that the references contain H2, CH4, NH3, and H2O
 for (r in ref_strs)
@@ -623,19 +626,19 @@ for (col in col_names)
 
 par(mfrow = c(1,1))
 
-hist(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal,
+hist(rxns[["CCSD(TQf) - CCSD(TQ) : TZ"]]*au2kcal,
      main="",
-     xlab="Factorization error of CCSD(T)[Q]/cc-pVDZ in reaction testsuite (kcal/mol)",
+     xlab="Factorization error of CCSD(T)[Q]/cc-pVTZ in reaction testsuite (kcal/mol)",
      breaks=40)
 
-mean(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal)
-rse(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal)
+mean(rxns[["CCSD(TQf) - CCSD(TQ) : TZ"]]*au2kcal)
+rse(rxns[["CCSD(TQf) - CCSD(TQ) : TZ"]]*au2kcal)
 
-rxns[["rxn_name"]][[which.min(rxns$`CCSD(TQf) - CCSD(TQ) : DZ`)]]
-rxns[["rxn_name"]][[which.max(rxns$`CCSD(TQf) - CCSD(TQ) : DZ`)]]
+rxns[["rxn_name"]][[which.min(rxns$`CCSD(TQf) - CCSD(TQ) : TZ`)]]
+rxns[["rxn_name"]][[which.max(rxns$`CCSD(TQf) - CCSD(TQ) : TZ`)]]
 
-write.csv(data.frame(raw_DZ[["Species"]]), "pTQf_vs_pTQ_species_dz.csv")
-write.csv(data.frame(rxns[["rxn_name"]]), "pTQf_vs_pTQ_rxns_dz.csv")
+write.csv(data.frame(raw_TZ[["Species"]]), "pTQf_vs_pTQ_species_tz.csv")
+write.csv(data.frame(rxns[["rxn_name"]]), "pTQf_vs_pTQ_rxns_tz.csv")
 
 #message(sprintf("RMS of (T) - D predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` - rxns$`HLC pred (T)-D`)*au2kcal))
 #plot(data$`CCSD(T) - CCSD`, data$`CCSDT(Q)_L - CCSD(T)`)
@@ -644,7 +647,7 @@ write.csv(data.frame(rxns[["rxn_name"]]), "pTQf_vs_pTQ_rxns_dz.csv")
 #points(rxns$`CCSD(T) - CCSD`*au2kcal, rxns$`HLC pred (T)-D`*au2kcal, col='red')
 
 
-#rxn_bs <- boot(data=data.frame(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal), statistic=bs_vals, R=10000, func=mean)
+#rxn_bs <- boot(data=data.frame(rxns[["CCSD(TQf) - CCSD(TQ) : TZ"]]*au2kcal), statistic=bs_vals, R=10000, func=mean)
 #print(rxn_bs)
 #plot(rxn_bs)
 
@@ -655,7 +658,7 @@ write.csv(data.frame(rxns[["rxn_name"]]), "pTQf_vs_pTQ_rxns_dz.csv")
 
 
 #RSE
-#rxn_bs <- boot(data=data.frame(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal), statistic=bs_vals, R=10000, func=rse)
+#rxn_bs <- boot(data=data.frame(rxns[["CCSD(TQf) - CCSD(TQ) : TZ"]]*au2kcal), statistic=bs_vals, R=10000, func=rse)
 #print(rxn_bs)
 #plot(rxn_bs)
 

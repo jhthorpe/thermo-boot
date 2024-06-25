@@ -85,7 +85,6 @@ raw_DZ[["count_C"]] <- foo_DZ$count_C
 raw_DZ[["count_N"]] <- foo_DZ$count_N
 raw_DZ[["count_O"]] <- foo_DZ$count_O
 raw_DZ[["count_F"]] <- foo_DZ$count_F
-
 raw_TZ[["count_val_e"]] <- foo_TZ$count_val_e
 raw_TZ[["count_H"]] <- foo_TZ$count_H
 raw_TZ[["count_B"]] <- foo_TZ$count_B
@@ -93,7 +92,6 @@ raw_TZ[["count_C"]] <- foo_TZ$count_C
 raw_TZ[["count_N"]] <- foo_TZ$count_N
 raw_TZ[["count_O"]] <- foo_TZ$count_O
 raw_TZ[["count_F"]] <- foo_TZ$count_F
-
 
 
 raw_DZ[["CCSD : DZ"]] <- foo_DZ$CCSD.cc.pVDZ
@@ -107,36 +105,37 @@ raw_DZ[["CCSD(T) : DZ per e"]] <- foo_DZ$CCSD.T..cc.pVDZ / foo_DZ$count_val_e
 raw_TZ[["CCSD(T) : TZ"]] <- foo_TZ$CCSD.T..cc.pVTZ
 raw_TZ[["CCSD(T) : TZ per e"]] <- foo_TZ$CCSD.T..cc.pVTZ / foo_TZ$count_val_e
 
+raw_DZ[["CCSDT : DZ"]] <- foo_DZ$CCSDT.cc.pVDZ
+raw_DZ[["CCSDT : DZ per e"]] <- foo_DZ$CCSDT.cc.pVDZ / foo_DZ$count_val_e
+raw_TZ[["CCSDT : TZ"]] <- foo_TZ$CCSDT.cc.pVTZ
+raw_TZ[["CCSDT : TZ per e"]] <- foo_TZ$CCSDT.cc.pVTZ / foo_TZ$count_val_e
 
-raw_DZ[["CCSD(TQ) : DZ"]] <- foo_DZ$CCSD.TQ..cc.pVDZ
-raw_DZ[["CCSD(TQ) : DZ per e"]] <- foo_DZ$CCSD.TQ..cc.pVDZ / foo_DZ$count_val_e
-raw_TZ[["CCSD(TQ) : TZ"]] <- foo_TZ$CCSD.TQ..cc.pVTZ
-raw_TZ[["CCSD(TQ) : TZ per e"]] <- foo_TZ$CCSD.TQ..cc.pVTZ / foo_TZ$count_val_e
+raw_DZ[["CCSD(T-5) : DZ"]] <- foo_DZ$CCSD.T.5..cc.pVDZ
+raw_DZ[["CCSD(T-5) : DZ per e"]] <- foo_DZ$CCSD.T.5..cc.pVDZ/ foo_DZ$count_val_e
+raw_TZ[["CCSD(T-5) : TZ"]] <- foo_TZ$CCSD.T.5..cc.pVTZ
+raw_TZ[["CCSD(T-5) : TZ per e"]] <- foo_TZ$CCSD.T.5..cc.pVTZ / foo_TZ$count_val_e
 
+raw_DZ[["CCSD(T-4) : DZ"]] <- foo_DZ$CCSD.T.4..cc.pVDZ
+raw_DZ[["CCSD(T-4) : DZ per e"]] <- foo_DZ$CCSD.T.4..cc.pVDZ/ foo_DZ$count_val_e
+raw_TZ[["CCSD(T-4) : TZ"]] <- foo_TZ$CCSD.T.4..cc.pVTZ
+raw_TZ[["CCSD(T-4) : TZ per e"]] <- foo_TZ$CCSD.T.4..cc.pVTZ / foo_TZ$count_val_e
 
-raw_DZ[["CCSD(TQf) : DZ"]] <- foo_DZ$CCSD.TQf..cc.pVDZ
-raw_DZ[["CCSD(TQf) : DZ per e"]] <- foo_DZ$CCSD.TQf..cc.pVDZ / foo_DZ$count_val_e
-raw_TZ[["CCSD(TQf) : TZ"]] <- foo_TZ$CCSD.TQf..cc.pVTZ
-raw_TZ[["CCSD(TQf) : TZ per e"]] <- foo_TZ$CCSD.TQf..cc.pVTZ / foo_TZ$count_val_e
-
-
-
-#raw_DZ[["CCSDT(Q)L : DZ"]] <- foo_DZ$CCSDT.Q._L.cc.pVDZ
-#raw_DZ[["CCSDT(Q)L : DZ per e"]] <- foo_DZ$CCSDT.Q._L.cc.pVDZ/ foo_DZ$count_val_e
-#raw_TZ[["CCSDT(Q)L : TZ"]] <- foo_TZ$CCSDT.Q._L.cc.pVTZ
 
 #Drop empty values (NaNs)
 raw_DZ <- na.omit(raw_DZ)
 raw_TZ <- na.omit(raw_TZ)
 
-#Keep only species in both sets
-#raw_DZ <- raw_DZ[(raw_DZ$Species %in% raw_TZ$Species), ]
-#raw_TZ <- raw_TZ[(raw_TZ$Species %in% raw_DZ$Species), ]
+#Keep only species in both DZ and TZ for this one. 
+raw_DZ <- raw_DZ[(raw_DZ$Species %in% raw_TZ$Species), ]
+raw_TZ <- raw_TZ[(raw_TZ$Species %in% raw_DZ$Species), ]
 
 #And print
 raw_DZ$Species
 raw_TZ$Species
 
+write.csv(data.frame(raw_DZ$Species), "pTn_vs_T_species.csv")
+
+stop()
 
 ####################################################################
 # ADD IN THE DATA WE NEED
@@ -150,22 +149,38 @@ raw_TZ[["CCSD(T) - CCSD : TZ"]] <- raw_TZ[["CCSD(T) : TZ"]] - raw_TZ[["CCSD : TZ
 raw_TZ[["CCSD(T) - CCSD : TZ per e"]] <- raw_TZ[["CCSD(T) : TZ per e"]] - raw_TZ[["CCSD : TZ per e"]]
 
 
-raw_DZ[["CCSD(TQ) - CCSD(T) : DZ"]] <- raw_DZ[["CCSD(TQ) : DZ"]] - raw_DZ[["CCSD(T) : DZ"]]
-raw_DZ[["CCSD(TQ) - CCSD(T) : DZ per e"]] <- raw_DZ[["CCSD(TQ) : DZ per e"]] - raw_DZ[["CCSD(T) : DZ per e"]]
-raw_TZ[["CCSD(TQ) - CCSD(T) : TZ"]] <- raw_TZ[["CCSD(TQ) : TZ"]] - raw_TZ[["CCSD(T) : TZ"]]
-raw_TZ[["CCSD(TQ) - CCSD(T) : TZ per e"]] <- raw_TZ[["CCSD(TQ) : TZ per e"]] - raw_TZ[["CCSD(T) : TZ per e"]]
+raw_DZ[["CCSD(T-4) - CCSD(T) : DZ"]] <- raw_DZ[["CCSD(T-4) : DZ"]] - raw_DZ[["CCSD(T) : DZ"]]
+raw_DZ[["CCSD(T-4) - CCSD(T) : DZ per e"]] <- raw_DZ[["CCSD(T-4) : DZ per e"]] - raw_DZ[["CCSD(T) : DZ per e"]]
+raw_TZ[["CCSD(T-4) - CCSD(T) : TZ"]] <- raw_TZ[["CCSD(T-4) : TZ"]] - raw_TZ[["CCSD(T) : TZ"]]
+raw_TZ[["CCSD(T-4) - CCSD(T) : TZ per e"]] <- raw_TZ[["CCSD(T-4) : TZ per e"]] - raw_TZ[["CCSD(T) : TZ per e"]]
 
 
-raw_DZ[["CCSD(TQf) - CCSD(T) : DZ"]] <- raw_DZ[["CCSD(TQf) : DZ"]] - raw_DZ[["CCSD(T) : DZ"]]
-raw_DZ[["CCSD(TQf) - CCSD(T) : DZ per e"]] <- raw_DZ[["CCSD(TQf) : DZ per e"]] - raw_DZ[["CCSD(T) : DZ per e"]]
-raw_TZ[["CCSD(TQf) - CCSD(T) : TZ"]] <- raw_TZ[["CCSD(TQf) : TZ"]] - raw_TZ[["CCSD(T) : TZ"]]
-raw_TZ[["CCSD(TQf) - CCSD(T) : TZ per e"]] <- raw_TZ[["CCSD(TQf) : TZ per e"]] - raw_TZ[["CCSD(T) : TZ per e"]]
+raw_DZ[["CCSD(T-5) - CCSD(T) : DZ"]] <- raw_DZ[["CCSD(T-5) : DZ"]] - raw_DZ[["CCSD(T) : DZ"]]
+raw_DZ[["CCSD(T-5) - CCSD(T) : DZ per e"]] <- raw_DZ[["CCSD(T-5) : DZ per e"]] - raw_DZ[["CCSD(T) : DZ per e"]]
+raw_TZ[["CCSD(T-5) - CCSD(T) : TZ"]] <- raw_TZ[["CCSD(T-5) : TZ"]] - raw_TZ[["CCSD(T) : TZ"]]
+raw_TZ[["CCSD(T-5) - CCSD(T) : TZ per e"]] <- raw_TZ[["CCSD(T-5) : TZ per e"]] - raw_TZ[["CCSD(T) : TZ per e"]]
 
 
-raw_DZ[["CCSD(TQf) - CCSD(TQ) : DZ"]] <- raw_DZ[["CCSD(TQf) : DZ"]] - raw_DZ[["CCSD(TQ) : DZ"]]
-raw_DZ[["CCSD(TQf) - CCSD(TQ) : DZ per e"]] <- raw_DZ[["CCSD(TQf) : DZ per e"]] - raw_DZ[["CCSD(TQ) : DZ per e"]]
-raw_TZ[["CCSD(TQf) - CCSD(TQ) : TZ"]] <- raw_TZ[["CCSD(TQf) : TZ"]] - raw_TZ[["CCSD(TQ) : TZ"]]
-raw_TZ[["CCSD(TQf) - CCSD(TQ) : TZ per e"]] <- raw_TZ[["CCSD(TQf) : TZ per e"]] - raw_TZ[["CCSD(TQ) : TZ per e"]]
+raw_DZ[["CCSDT - CCSD(T) : DZ"]] <- raw_DZ[["CCSDT : DZ"]] - raw_DZ[["CCSD(T) : DZ"]]
+raw_DZ[["CCSDT - CCSD(T) : DZ per e"]] <- raw_DZ[["CCSDT : DZ per e"]] - raw_DZ[["CCSD(T) : DZ per e"]]
+raw_TZ[["CCSDT - CCSD(T) : TZ"]] <- raw_TZ[["CCSDT : TZ"]] - raw_TZ[["CCSD(T) : TZ"]]
+raw_TZ[["CCSDT - CCSD(T) : TZ per e"]] <- raw_TZ[["CCSDT : TZ per e"]] - raw_TZ[["CCSD(T) : TZ per e"]]
+
+raw_DZ[["CCSDT - CCSD(T) : DZ"]] <- raw_DZ[["CCSDT : DZ"]] - raw_DZ[["CCSD(T) : DZ"]]
+raw_DZ[["CCSDT - CCSD(T) : DZ per e"]] <- raw_DZ[["CCSDT : DZ per e"]] - raw_DZ[["CCSD(T) : DZ per e"]]
+raw_TZ[["CCSDT - CCSD(T) : TZ"]] <- raw_TZ[["CCSDT : TZ"]] - raw_TZ[["CCSD(T) : TZ"]]
+raw_TZ[["CCSDT - CCSD(T) : TZ per e"]] <- raw_TZ[["CCSDT : TZ per e"]] - raw_TZ[["CCSD(T) : TZ per e"]]
+
+raw_DZ[["CCSD(T-5) - CCSDT : DZ"]]       <- raw_DZ[["CCSD(T-5) : DZ"]]       - raw_DZ[["CCSDT : DZ"]]
+raw_DZ[["CCSD(T-5) - CCSDT : DZ per e"]] <- raw_DZ[["CCSD(T-5) : DZ per e"]] - raw_DZ[["CCSDT : DZ per e"]]
+raw_TZ[["CCSD(T-5) - CCSDT : TZ"]]       <- raw_TZ[["CCSD(T-5) : TZ"]]       - raw_TZ[["CCSDT : TZ"]]
+raw_TZ[["CCSD(T-5) - CCSDT : TZ per e"]] <- raw_TZ[["CCSD(T-5) : TZ per e"]] - raw_TZ[["CCSDT : TZ per e"]]
+
+raw_DZ[["CCSD(T-4) - CCSDT : DZ"]]       <- raw_DZ[["CCSD(T-4) : DZ"]]       - raw_DZ[["CCSDT : DZ"]]
+raw_DZ[["CCSD(T-4) - CCSDT : DZ per e"]] <- raw_DZ[["CCSD(T-4) : DZ per e"]] - raw_DZ[["CCSDT : DZ per e"]]
+raw_TZ[["CCSD(T-4) - CCSDT : TZ"]]       <- raw_TZ[["CCSD(T-4) : TZ"]]       - raw_TZ[["CCSDT : TZ"]]
+raw_TZ[["CCSD(T-4) - CCSDT : TZ per e"]] <- raw_TZ[["CCSD(T-4) : TZ per e"]] - raw_TZ[["CCSDT : TZ per e"]]
+
 
 
 ####################################################################
@@ -186,6 +201,11 @@ rse(raw_DZ[["CCSD(TQf) - CCSD(TQ) : DZ"]])
 
 raw_DZ[["Species"]][[which.min(raw_DZ$`CCSD(TQf) - CCSD(TQ) : DZ`)]]
 raw_DZ[["Species"]][[which.max(raw_DZ$`CCSD(TQf) - CCSD(TQ) : DZ`)]]
+
+stop()
+
+
+# HERE HERE HERE HERE HERE HERE HERE HERE HERE HERE HERE HERE HERE HERE
 
 ###################################################################
 # BOOTSTRAP RAW ERRORS
@@ -625,7 +645,7 @@ par(mfrow = c(1,1))
 
 hist(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal,
      main="",
-     xlab="Factorization error of CCSD(T)[Q]/cc-pVDZ in reaction testsuite (kcal/mol)",
+     xlab="Factorization error of CCSD(TQ)/cc-pVDZ in reaction testsuite (kcal/mol)",
      breaks=40)
 
 mean(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal)
@@ -633,9 +653,6 @@ rse(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal)
 
 rxns[["rxn_name"]][[which.min(rxns$`CCSD(TQf) - CCSD(TQ) : DZ`)]]
 rxns[["rxn_name"]][[which.max(rxns$`CCSD(TQf) - CCSD(TQ) : DZ`)]]
-
-write.csv(data.frame(raw_DZ[["Species"]]), "pTQf_vs_pTQ_species_dz.csv")
-write.csv(data.frame(rxns[["rxn_name"]]), "pTQf_vs_pTQ_rxns_dz.csv")
 
 #message(sprintf("RMS of (T) - D predictor is %f", rms(rxns$`CCSDT(Q)_L - CCSD(T)` - rxns$`HLC pred (T)-D`)*au2kcal))
 #plot(data$`CCSD(T) - CCSD`, data$`CCSDT(Q)_L - CCSD(T)`)
@@ -655,12 +672,12 @@ write.csv(data.frame(rxns[["rxn_name"]]), "pTQf_vs_pTQ_rxns_dz.csv")
 
 
 #RSE
-#rxn_bs <- boot(data=data.frame(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal), statistic=bs_vals, R=10000, func=rse)
-#print(rxn_bs)
-#plot(rxn_bs)
+rxn_bs <- boot(data=data.frame(rxns[["CCSD(TQf) - CCSD(TQ) : DZ"]]*au2kcal), statistic=bs_vals, R=10000, func=rse)
+print(rxn_bs)
+plot(rxn_bs)
 
-#rxn_bs_ci = boot.ci(rxn_bs, type="bca")
-#print(rxn_bs_ci$bca[4])
-#print(rxn_bs_ci$bca[5])
+rxn_bs_ci = boot.ci(rxn_bs, type="bca")
+print(rxn_bs_ci$bca[4])
+print(rxn_bs_ci$bca[5])
 
 
